@@ -17,12 +17,13 @@ A simple yet powerful Python implementation of a local LangChain agent that conn
 
 - Python 3.8 or higher
 - [Ollama](https://ollama.ai/) installed and running locally with models like:
-  - DeepSeek Coder (recommended: `deepseek-coder:7b-instruct-v2`)
-  - Qwen (e.g., `qwen:14b`)
+  - `llama3:8b`
+  - `qwen3:8b`
+  - `deepseek-coder:6.7b`
 
 ## Installation
 
 1. Clone this repository:
-```bash
-git clone <your-repository-url>
-cd <repository-directory>
+   ```bash
+   git clone <your-repository-url>
+   cd <repository-directory>
