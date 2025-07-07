@@ -1,0 +1,114 @@
+services:
+  ollama:
+    container_name: ollama
+    build:
+      context: ./services/ollama
+      dockerfile: Dockerfile
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_PREDOWNLOAD_MODELS=llama3\:8b,deepseek-coder\:6.7b
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/home/ollama/.ollama:rw
+    networks:
+      - agent-network
+    logging:
+      driver: "local"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        path: "./logs/ollama.log"
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+        
+
+  searxng:
+    container_name: searxng
+    image: searxng/searxng:latest
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_SECRET_KEY=change-this-secret-key-in-production
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng-data:/etc/searxng:rw
+    networks:
+      - agent-network
+    logging:
+      driver: "local"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        path: "./logs/searxng.log"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+
+  agent:
+    container_name: agent
+    build:
+      context: ./services/agent
+      dockerfile: Dockerfile
+    environment:
+      - OLLAMA_MODEL=llama3:8b
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - SEARXNG_BASE_URL=http://searxng:8080
+    ports:
+      - "8000:8000"
+    volumes:
+      - agent-workspace:/app/workspace:rw
+    networks:
+      - agent-network
+    logging:
+      driver: "local"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        path: "./logs/agent.log"
+    depends_on:
+      ollama:
+        condition: service_healthy
+      searxng:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+networks:
+  agent-network:
+    driver: bridge
+
+volumes:
+  agent-workspace:
+    driver: local
+  ollama-data:
+    driver: local
+  searxng-data:
+    driver: local

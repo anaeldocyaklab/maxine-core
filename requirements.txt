@@ -1,4 +1,0 @@
-langchain
-requests
-beautifulsoup4
-langchain_community
